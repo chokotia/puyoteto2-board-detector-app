@@ -101,13 +101,13 @@ function copyFumenUrl() {
 async function loadModel() {
     try {
         showStatus('🔄 モデルを読み込み中...', 'loading');
-        session = new onnx.InferenceSession();
-        await session.loadModel('./models/tetris_mobilenet_v2.onnx');
+        session = await ort.InferenceSession.create('./models/tetris_mobilenet_v3_small.onnx');
+
         showStatus('✅ モデルが正常に読み込まれました', 'success');
         console.log('モデル読み込み完了');
     } catch (error) {
         console.error('モデルの読み込みに失敗:', error);
-        showStatus('❌ エラー: モデルファイル(tetris_mobilenet_v2.onnx)が見つかりません', 'error');
+        showStatus('❌ エラー: モデルファイル(tetris_mobilenet_v3_small.onnx)が見つかりません', 'error');
     }
 }
 
@@ -202,9 +202,9 @@ async function analyzeBoardImage() {
                 const cellData = preprocessImage(cellImg);
                 
                 // 推論実行
-                const inputTensor = new onnx.Tensor(cellData, 'float32', [1, 3, 224, 224]);
-                const outputMap = await session.run([inputTensor]);
-                const output = outputMap.values().next().value.data;
+                const inputTensor = new ort.Tensor('float32', cellData, [1, 3, 224, 224]);
+                const outputMap = await session.run({ input: inputTensor });
+                const output = outputMap.output.data;
                 
                 // 最大値のインデックスを取得
                 let maxIndex = 0;
