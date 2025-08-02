@@ -212,6 +212,7 @@ async function analyzeBoardImage() {
                 // 最大値のインデックスを取得
                 let maxIndex = 0;
                 let maxValue = output[0];
+                console.log("output", col, row, output);
                 for (let i = 1; i < output.length; i++) {
                     if (output[i] > maxValue) {
                         maxValue = output[i];
