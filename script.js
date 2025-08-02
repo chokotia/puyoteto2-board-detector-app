@@ -7,29 +7,32 @@ const LABEL_NAMES = [
     "_", "I", "O", "T", "L", "J", "S", "Z", "X"
 ];
 
-// サンプル画像を読み込む（SAMPLE_IMAGEを使用）
+// サンプル画像を読み込む（SAMPLE_IMAGESを使用）
 function loadSampleImage() {
-    if (typeof SAMPLE_IMAGE === 'undefined') {
+    if (typeof SAMPLE_IMAGES === 'undefined' || !Array.isArray(SAMPLE_IMAGES) || SAMPLE_IMAGES.length === 0) {
         showStatus('❌ エラー: サンプル画像が見つかりません', 'error');
         return;
     }
-    
+
+    const randomIndex = Math.floor(Math.random() * SAMPLE_IMAGES.length);
+    const selectedImage = SAMPLE_IMAGES[randomIndex];
+
     const img = new Image();
     img.onload = function() {
         uploadedImage = img;
         const preview = document.getElementById('preview');
         const previewSection = document.getElementById('previewSection');
-        
-        preview.src = SAMPLE_IMAGE;
+
+        preview.src = selectedImage;
         previewSection.style.display = 'block';
-        
+
         document.getElementById('analyzeBtn').disabled = !session;
         showStatus('✅ サンプル画像が読み込まれました。分析ボタンを押してください。', 'success');
     };
     img.onerror = function() {
         showStatus('❌ エラー: サンプル画像の読み込みに失敗しました', 'error');
     };
-    img.src = SAMPLE_IMAGE;
+    img.src = selectedImage;
 }
 
 // 数字列をFumen用のフィールド文字列に変換
