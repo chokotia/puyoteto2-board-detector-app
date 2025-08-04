@@ -158,21 +158,54 @@ async function analyzeBoardImage() {
     
     analyzeBtn.disabled = true;
     analyzeBtn.textContent = '🔍 分析中...';
-    showStatus('🔄 盤面を10×20のセルに分割して分析中...', 'loading');
+    showStatus('🔄 画像の前処理中（枠削除）...', 'loading');
     results.style.display = 'none';
     
-    try {
-        // 画像をCanvasに描画
+     try {
+        // 元の画像をCanvasに描画
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         canvas.width = uploadedImage.width;
         canvas.height = uploadedImage.height;
         ctx.drawImage(uploadedImage, 0, 0);
         
-        // セルサイズ計算
-        const cellWidth = canvas.width / 10;
-        const cellHeight = canvas.height / 20;
+        // 枠削除の前処理を実行
+        showStatus('🔄 枠削除処理を実行中...', 'loading');
         
+        // canvasをbase64に変換
+        const base64img = canvas.toDataURL('image/png');
+        const cropper = new ColorFrameCropper();
+        const cropperResults = await cropper.processBothPlayers(base64img);
+        const croppedBase64 = cropperResults?.players["1P2P"]?.cropped?.base64;
+
+        // croppedBase64をcanvasに変換
+        const preprocessedCanvas = document.createElement('canvas');
+        const img = new Image();
+        await new Promise((resolve, reject) => {
+            img.onload = () => {
+                preprocessedCanvas.width = img.width;
+                preprocessedCanvas.height = img.height;
+                const ctx = preprocessedCanvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                resolve();
+            };
+            img.onerror = reject;
+            img.src = croppedBase64;
+        });
+
+        // 前処理後の画像をbase64でコンソール出力（目視確認用）
+        console.log('🖼️ 前処理後の画像 (base64):', croppedBase64);
+        
+        // 前処理後の画像サイズを取得
+        const preprocessedWidth = preprocessedCanvas.width;
+        const preprocessedHeight = preprocessedCanvas.height;
+        
+        // セルサイズを再計算（前処理後の画像サイズに基づく）
+        const cellWidth = preprocessedWidth / 10;
+        const cellHeight = preprocessedHeight / 20;
+        
+        showStatus('🔄 盤面を10×20のセルに分割して分析中...', 'loading');
+               
         const predictedLabels = [];
         
         // 10列×20行の各セルを処理
@@ -192,10 +225,10 @@ async function analyzeBoardImage() {
                 
                 cellCanvas.width = cellW;
                 cellCanvas.height = cellH;
-                cellCtx.drawImage(canvas, x1, y1, cellW, cellH, 0, 0, cellW, cellH);
+                cellCtx.drawImage(preprocessedCanvas, x1, y1, cellW, cellH, 0, 0, cellW, cellH);
                 
                 // セル画像をImageオブジェクトに変換
-                const cellImg = new Image();
+                let cellImg = new Image();
                 await new Promise((resolve) => {
                     cellImg.onload = resolve;
                     cellImg.src = cellCanvas.toDataURL();
@@ -212,7 +245,7 @@ async function analyzeBoardImage() {
                 // 最大値のインデックスを取得
                 let maxIndex = 0;
                 let maxValue = output[0];
-                console.log("output", col, row, output);
+                // console.log("output", col, row, output);
                 for (let i = 1; i < output.length; i++) {
                     if (output[i] > maxValue) {
                         maxValue = output[i];
