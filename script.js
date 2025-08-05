@@ -7,36 +7,6 @@ const LABEL_NAMES = [
     "_", "I", "O", "T", "L", "J", "S", "Z", "X"
 ];
 
-// サンプル画像を読み込む（SAMPLE_IMAGESを使用）
-function loadSampleImage() {
-    if (typeof SAMPLE_IMAGES === 'undefined' || !Array.isArray(SAMPLE_IMAGES) || SAMPLE_IMAGES.length === 0) {
-        showStatus('❌ エラー: サンプル画像が見つかりません', 'error');
-        return;
-    }
-
-    const randomIndex = Math.floor(Math.random() * SAMPLE_IMAGES.length);
-    const selectedImage = SAMPLE_IMAGES[randomIndex];
-
-    const img = new Image();
-    img.onload = function() {
-        uploadedImage = img;
-        
-        // 新しいレイアウトで画像を表示（初期化も含む）
-        showImagePreview(selectedImage);
-
-        // モデルが読み込まれている場合は自動で分析開始
-        if (session) {
-            analyzeBoardImage();
-        } else {
-            showStatus('✅ サンプル画像が読み込まれました。モデルの読み込み完了をお待ちください。', 'success');
-        }
-    };
-    img.onerror = function() {
-        showStatus('❌ エラー: サンプル画像の読み込みに失敗しました', 'error');
-    };
-    img.src = selectedImage;
-}
-
 // 数字列をFumen用のフィールド文字列に変換
 function convertToFumenField(numberString) {
     if (numberString.length !== 200) {
@@ -135,10 +105,6 @@ function preprocessImage(imageElement, targetWidth = 224, targetHeight = 224) {
 async function analyzeBoardImage() {
     if (!session || !uploadedImage) return;
     
-    // const analyzeBtn = document.getElementById('analyzeBtn');
-    
-    // analyzeBtn.disabled = true;
-    // analyzeBtn.textContent = '🔍 分析中...';
     showStatus('📄 画像の前処理中（枠削除）...', 'loading');
     
      try {

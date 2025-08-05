@@ -45,10 +45,6 @@ h1 {
     min-width: 300px;
 }
 
-.sample-button {
-    flex-shrink: 0;
-}
-
 /* 分析結果を表示するコンテンツエリア */
 .analysis-content {
     width: 100%;
@@ -126,32 +122,6 @@ h1 {
 .mino-Z { background: #ff0000; color: #330000; border-color: #ff6666; }
 .mino-X { background: #666; color: #ccc; border-color: #999; }
 
-.help-section {
-    background-color: #fff3cd;
-    border: 1px solid #ffeaa7;
-    border-radius: 8px;
-    padding: 15px;
-    margin-bottom: 20px;
-    font-size: 14px;
-}
-
-.help-section h4 {
-    color: #856404;
-    margin: 0 0 8px 0;
-    font-size: 14px;
-}
-
-.help-section p {
-    color: #856404;
-    margin: 5px 0;
-}
-
-.help-section .subtitle {
-    color: #856404;
-    margin-bottom: 10px;
-    font-weight: bold;
-}
-
 #fileInput {
     display: none;
 }
@@ -205,16 +175,14 @@ h1 {
     background-color: #545b62;
 }
 
-#preview {
+/* #preview {
     max-width: 400px;
     max-height: 300px;
     margin: 20px auto;
     display: block;
     border: 1px solid #ddd;
     border-radius: 5px;
-}
-
-
+} */
 
 .status {
     text-align: center;
@@ -238,22 +206,6 @@ h1 {
     color: #155724;
 }
 
-.github-link {
-    margin-top: 20px;
-    text-align: center;
-    font-size: 12px;
-    color: #666;
-}
-
-.github-link a {
-    color: #666;
-    text-decoration: none;
-}
-
-.github-link a:hover {
-    color: #007bff;
-}
-
 kbd {
     background-color: #f4f4f4;
     border: 1px solid #ccc;
@@ -266,45 +218,4 @@ kbd {
     line-height: 1;
     padding: 2px 4px;
     white-space: nowrap;
-}
-
-@media (max-width: 600px) {
-    .upload-section {
-        flex-direction: column;
-        text-align: center;
-    }
-    
-    .upload-content {
-        min-width: auto;
-    }
-    
-    .analysis-content {
-        display: block;
-    }
-    
-    .content-row {
-        flex-direction: column;
-        gap: 15px;
-    }
-    
-    .tetris-board {
-        grid-template-columns: repeat(10, 18px);
-        grid-template-rows: repeat(20, 18px);
-    }
-    
-    .cell {
-        width: 18px;
-        height: 18px;
-        font-size: 7px;
-    }
-    
-    .btn {
-        width: 200px;
-    }
-    
-    .btn.info, .btn.secondary {
-        width: auto;
-        font-size: 11px;
-        padding: 5px 10px;
-    }
 }
