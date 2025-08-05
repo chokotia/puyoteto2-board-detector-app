@@ -20,14 +20,16 @@ function loadSampleImage() {
     const img = new Image();
     img.onload = function() {
         uploadedImage = img;
-        const preview = document.getElementById('preview');
-        const previewSection = document.getElementById('previewSection');
+        
+        // 新しいレイアウトで画像を表示（初期化も含む）
+        showImagePreview(selectedImage);
 
-        preview.src = selectedImage;
-        previewSection.style.display = 'block';
-
-        document.getElementById('analyzeBtn').disabled = !session;
-        showStatus('✅ サンプル画像が読み込まれました。分析ボタンを押してください。', 'success');
+        // モデルが読み込まれている場合は自動で分析開始
+        if (session) {
+            analyzeBoardImage();
+        } else {
+            showStatus('✅ サンプル画像が読み込まれました。モデルの読み込み完了をお待ちください。', 'success');
+        }
     };
     img.onerror = function() {
         showStatus('❌ エラー: サンプル画像の読み込みに失敗しました', 'error');
@@ -78,25 +80,6 @@ function generateFumenUrl(numberString) {
 function openFumenUrl() {
     if (currentFumenUrl) {
         window.open(currentFumenUrl, '_blank');
-    }
-}
-
-// Fumen URLをコピー
-function copyFumenUrl() {
-    if (currentFumenUrl) {
-        navigator.clipboard.writeText(currentFumenUrl).then(() => {
-            const copyBtn = document.getElementById('copyFumenBtn');
-            const originalText = copyBtn.textContent;
-            copyBtn.textContent = '✅ コピー完了！';
-            copyBtn.style.backgroundColor = '#28a745';
-            setTimeout(() => {
-                copyBtn.textContent = originalText;
-                copyBtn.style.backgroundColor = '#007bff';
-            }, 2000);
-        }).catch(err => {
-            console.error('コピーに失敗:', err);
-            alert('URLのコピーに失敗しました');
-        });
     }
 }
 
@@ -152,14 +135,11 @@ function preprocessImage(imageElement, targetWidth = 224, targetHeight = 224) {
 async function analyzeBoardImage() {
     if (!session || !uploadedImage) return;
     
-    const analyzeBtn = document.getElementById('analyzeBtn');
-    const results = document.getElementById('results');
-    const fumenUrl = document.getElementById('fumenUrl');
+    // const analyzeBtn = document.getElementById('analyzeBtn');
     
-    analyzeBtn.disabled = true;
-    analyzeBtn.textContent = '🔍 分析中...';
-    showStatus('🔄 画像の前処理中（枠削除）...', 'loading');
-    results.style.display = 'none';
+    // analyzeBtn.disabled = true;
+    // analyzeBtn.textContent = '🔍 分析中...';
+    showStatus('📄 画像の前処理中（枠削除）...', 'loading');
     
      try {
         // 元の画像をCanvasに描画
@@ -264,28 +244,26 @@ async function analyzeBoardImage() {
         // 結果を表示
         const labelString = predictedLabels.join('');
         
+        // テトリス盤面を描画
+        showAnalysisResult(labelString);
+        
         // Fumen URL生成
         try {
             currentFumenUrl = generateFumenUrl(labelString);
-            fumenUrl.textContent = currentFumenUrl;
+            showFumenButton();
             showStatus(`🎉 分析完了！Fumen譜面が生成されました`, 'success');
         } catch (fumenError) {
             console.error('Fumen URL生成エラー:', fumenError);
-            fumenUrl.textContent = 'Fumen URL生成に失敗しました: ' + fumenError.message;
             currentFumenUrl = '';
             showStatus(`⚠️ 分析完了（Fumen URL生成でエラーが発生）`, 'error');
         }
         
-        results.style.display = 'block';
         console.log(`予測結果: ${labelString}`);
         console.log(`Fumen URL: ${currentFumenUrl}`);
         
     } catch (error) {
         console.error('分析エラー:', error);
         showStatus('❌ エラー: 分析中に問題が発生しました', 'error');
-    } finally {
-        analyzeBtn.disabled = false;
-        analyzeBtn.textContent = '🔍 分析開始';
     }
 }
 
@@ -302,14 +280,16 @@ function handlePaste(e) {
                 const img = new Image();
                 img.onload = function() {
                     uploadedImage = img;
-                    const preview = document.getElementById('preview');
-                    const previewSection = document.getElementById('previewSection');
                     
-                    preview.src = event.target.result;
-                    previewSection.style.display = 'block';
+                    // 新しいレイアウトで画像を表示（初期化も含む）
+                    showImagePreview(event.target.result);
                     
-                    document.getElementById('analyzeBtn').disabled = !session;
-                    showStatus('✅ クリップボードから画像が読み込まれました。分析ボタンを押してください。', 'success');
+                    // モデルが読み込まれている場合は自動で分析開始
+                    if (session) {
+                        analyzeBoardImage();
+                    } else {
+                        showStatus('✅ クリップボードから画像が読み込まれました。モデルの読み込み完了をお待ちください。', 'success');
+                    }
                 };
                 img.src = event.target.result;
             };
@@ -330,31 +310,134 @@ document.addEventListener('DOMContentLoaded', function() {
     document.body.focus();
 });
 
-const fileInput = document.getElementById('fileInput')?.addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const img = new Image();
-            img.onload = function() {
-                uploadedImage = img;
-                const preview = document.getElementById('preview');
-                const previewSection = document.getElementById('previewSection');
-                
-                preview.src = e.target.result;
-                previewSection.style.display = 'block';
-                
-                document.getElementById('analyzeBtn').disabled = !session;
-                showStatus('✅ 画像が読み込まれました。分析ボタンを押してください。', 'success');
+// ファイル入力処理
+const fileInput = document.getElementById('fileInput');
+if (fileInput) {
+    fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    uploadedImage = img;
+                    
+                    // 新しいレイアウトで画像を表示（初期化も含む）
+                    showImagePreview(e.target.result);
+                    
+                    // モデルが読み込まれている場合は自動で分析開始
+                    if (session) {
+                        analyzeBoardImage();
+                    } else {
+                        showStatus('✅ 画像が読み込まれました。モデルの読み込み完了をお待ちください。', 'success');
+                    }
+                };
+                img.src = e.target.result;
             };
-            img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
-    }
-});
-
-// 分析ボタン
-document.getElementById('analyzeBtn')?.addEventListener('click', analyzeBoardImage);
+            reader.readAsDataURL(file);
+        }
+    });
+}
 
 // 初期化
 loadModel();
+
+const MINO_CLASSES = [
+    "mino-empty", "mino-I", "mino-O", "mino-T", 
+    "mino-L", "mino-J", "mino-S", "mino-Z", "mino-X"
+];
+
+function createTetrisBoard() {
+    const board = document.getElementById('tetrisBoard');
+    board.innerHTML = '';
+    
+    // 20行×10列のセルを作成
+    for (let row = 0; row < 20; row++) {
+        for (let col = 0; col < 10; col++) {
+            const cell = document.createElement('div');
+            cell.className = 'cell mino-empty';
+            cell.id = `cell-${row}-${col}`;
+            board.appendChild(cell);
+        }
+    }
+}
+
+function drawTetrisBoard(input) {
+    // 入力チェック
+    if (input.length !== 200) {
+        console.error(`入力データは200文字である必要があります。現在: ${input.length}文字`);
+        return;
+    }
+
+    // 数字以外が含まれていないかチェック
+    if (!/^[0-8]+$/.test(input)) {
+        console.error('入力データは0-8の数字のみである必要があります。');
+        return;
+    }
+
+    // 盤面を作成
+    createTetrisBoard();
+
+    // データを解析して盤面に反映
+    for (let i = 0; i < 200; i++) {
+        const minoIndex = parseInt(input[i]);
+        
+        // 列優先でのインデックス計算
+        const col = Math.floor(i / 20);  // 列 (0-9)
+        const row = i % 20;              // 行 (0-19)
+        
+        const cell = document.getElementById(`cell-${row}-${col}`);
+        if (cell) {
+            // 既存のミノクラスを除去
+            MINO_CLASSES.forEach(cls => cell.classList.remove(cls));
+            
+            // 新しいミノクラスを追加
+            cell.classList.add(MINO_CLASSES[minoIndex]);
+        }
+    }
+}
+
+// 画像表示の切り替え処理
+function showImagePreview(imageSrc) {
+    const uploadContent = document.getElementById('uploadContent');
+    const analysisContent = document.getElementById('analysisContent');
+    const previewImage = document.getElementById('previewImage');
+    
+    // アップロード内容を非表示にし、分析内容を表示
+    uploadContent.style.display = 'none';
+    analysisContent.style.display = 'block';
+    
+    // 画像を設定
+    previewImage.src = imageSrc;
+    
+    // 初期化: テトリス盤面とFumen URLを非表示に
+    initializeAnalysisResults();
+    
+    // クリックイベントを無効化
+    document.getElementById('uploadSection').onclick = null;
+}
+
+// 分析結果の初期化
+function initializeAnalysisResults() {
+    // テトリス盤面を非表示
+    document.getElementById('boardSection').style.display = 'none';
+    
+    // Fumen URLを非表示
+    document.getElementById('fumenSection').style.display = 'none';
+    
+    // 現在のFumen URLをリセット
+    currentFumenUrl = '';
+}
+
+// 分析結果でテトリス盤面を描画
+function showAnalysisResult(boardData) {
+    drawTetrisBoard(boardData);
+    // テトリス盤面を表示
+    document.getElementById('boardSection').style.display = 'block';
+}
+
+// Fumen ボタンを表示
+function showFumenButton() {
+    const fumenSection = document.getElementById('fumenSection');
+    fumenSection.style.display = 'block';
+}

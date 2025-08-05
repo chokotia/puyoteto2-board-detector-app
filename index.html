@@ -17,48 +17,46 @@
             <h4>📋 使い方</h4>
             <p>1. テトリス盤面のスクリーンショットを撮影（または <strong>Win + Shift + S</strong> で盤面をコピー）</p>
             <p>2. 画像をアップロード（または <strong>Ctrl + V</strong> で貼り付け）</p>
-            <p>3. 分析ボタンを押してテトリス譜面URLを生成</p>
-
-            <h4>💡 注意</h4>
-            <p>1. 対テト用デフォルトスキン以外のスキンは認識できない可能性があります。（学習データに含めていません。）</p>
+            <p>3. 分析が完了するまでお待ちください。テトリス譜面URLが生成されます。</p>
+            <button class="btn info" onclick="loadSampleImage(); event.stopPropagation();">📸 サンプル画像で試す</button>
         </div>
         
-        <div class="upload-section" onclick="document.getElementById('fileInput').click()">
-            <div class="upload-content">
-                <p>📁 テトリス盤面画像をアップロード</p>
+        <div class="upload-section" id="uploadSection" onclick="document.getElementById('fileInput').click()">
+            <div class="upload-content" id="uploadContent">
+                <p>📁 クリックして画像を選択</p>
                 <p>または <kbd>Ctrl + V</kbd> でクリップボードから貼り付け</p>
                 <p style="color: #999; font-size: 12px;">対応形式: PNG, JPG</p>
             </div>
-            <div class="sample-button">
-                <button class="btn info" onclick="loadSampleImage(); event.stopPropagation();">📸 サンプル画像で試す</button>
+            
+            <!-- 画像と盤面を並べて表示するエリア -->
+            <div class="analysis-content" id="analysisContent" style="display: none;">
+                <div class="content-row">
+                    <div class="image-side">
+                        <h4>📸 読み込まれた画像</h4>
+                        <img id="previewImage" class="preview-image">
+                    </div>
+                    
+                    <div class="board-side">
+                        <!-- テトリス盤面（分析後のみ表示） -->
+                        <div id="boardSection" style="display: none;">
+                            <h4>🧩 認識されたテトリス盤面</h4>
+                            <div id="tetrisBoard" class="tetris-board"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Fumen URL（分析後のみ表示） -->
+                <div id="fumenSection" class="fumen-button-section" style="display: none;">
+                    <button id="fumenBtn" class="btn success" onclick="openFumenUrl()">📖 Fumenで開く</button>
+                </div>
             </div>
         </div>
         
         <input type="file" id="fileInput" accept="image/*">
         
-        <div style="text-align: center;">
-            <button id="analyzeBtn" class="btn" disabled>🔍 分析開始</button>
-        </div>
-        
         <div id="statusDiv"></div>
-        
-        <div id="results" style="display: none;" class="results">
-            <div id="fumenSection" class="fumen-section">
-                <h4>🧩 テトリス譜面（Fumen）</h4>
-                <div id="fumenUrl" class="fumen-url"></div>
-                <div style="text-align: center; margin-top: 15px;">
-                    <button id="openFumenBtn" class="btn success" onclick="openFumenUrl()">📖 Fumenで開く</button>
-                    <button id="copyFumenBtn" class="btn" onclick="copyFumenUrl()">📋 URLをコピー</button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- 画像プレビューセクションを最下部に移動 -->
-        <div id="previewSection" class="preview-section" style="display: none;">
-            <h4>📸 読み込まれた画像</h4>
-            <img id="preview">
-        </div>
     </div>
+       
     <script src="lib/fumen.bundle.js"></script>
     <script src="color_frame_cropper.js"></script>
     <script src="sample_images.js"></script>
