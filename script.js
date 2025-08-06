@@ -1,10 +1,17 @@
 let session = null;
 let uploadedImage = null;
 let currentFumenUrl = '';
+let imageInputHandler = null;
 
 // ラベル名の定義
 const LABEL_NAMES = [
     "_", "I", "O", "T", "L", "J", "S", "Z", "X"
+];
+
+// Mino クラス定義
+const MINO_CLASSES = [
+    "mino-empty", "mino-I", "mino-O", "mino-T", 
+    "mino-L", "mino-J", "mino-S", "mino-Z", "mino-X"
 ];
 
 // 数字列をFumen用のフィールド文字列に変換
@@ -115,10 +122,10 @@ async function analyzeBoardImage() {
         canvas.height = uploadedImage.height;
         ctx.drawImage(uploadedImage, 0, 0);
         
-        // 枠削除の前処理を実行
         showStatus('🔄 枠削除処理を実行中...', 'loading');
         const results = await cropColorFrames(canvas);
-        const preprocessedCanvas = results?.players["1P2P"]?.cropped?.canvas;
+        preprocessedCanvas = results?.players["1P2P"]?.cropped?.canvas || canvas;
+    
         
         // [debug] 前処理後の画像をbase64でコンソール出力（目視確認用）
         // const croppedBase64 = results?.players["1P2P"]?.cropped?.base64;
@@ -215,86 +222,41 @@ async function analyzeBoardImage() {
     }
 }
 
-// クリップボードから画像を貼り付ける
-function handlePaste(e) {
-    const items = e.clipboardData.items;
+// 画像入力処理のコールバック関数
+function handleImageLoaded(imageData) {
+    console.log('画像が読み込まれました:', imageData.source);
     
-    for (let i = 0; i < items.length; i++) {
-        if (items[i].type.indexOf('image') !== -1) {
-            const blob = items[i].getAsFile();
-            const reader = new FileReader();
-            
-            reader.onload = function(event) {
-                const img = new Image();
-                img.onload = function() {
-                    uploadedImage = img;
-                    
-                    // 新しいレイアウトで画像を表示（初期化も含む）
-                    showImagePreview(event.target.result);
-                    
-                    // モデルが読み込まれている場合は自動で分析開始
-                    if (session) {
-                        analyzeBoardImage();
-                    } else {
-                        showStatus('✅ クリップボードから画像が読み込まれました。モデルの読み込み完了をお待ちください。', 'success');
-                    }
-                };
-                img.src = event.target.result;
-            };
-            
-            reader.readAsDataURL(blob);
-            e.preventDefault();
-            break;
-        }
+    // グローバル変数に画像を保存
+    uploadedImage = imageData.image;
+    
+    // 画像プレビューを表示
+    showImagePreview(imageData.dataUrl);
+    
+    // 入力ソースに応じたメッセージ表示
+    const sourceMessages = {
+        'file-input': '✅ ファイルから画像が読み込まれました',
+        'clipboard': '✅ クリップボードから画像が読み込まれました',
+        'drag-and-drop': '✅ ドラッグアンドドロップで画像が読み込まれました'
+    };
+    
+    const message = sourceMessages[imageData.source] || '✅ 画像が読み込まれました';
+    
+    // モデルが読み込まれている場合は自動で分析開始
+    if (session) {
+        showStatus(message, 'success');
+        setTimeout(() => analyzeBoardImage(), 100); // 少し遅延させてUI更新を確実に
+    } else {
+        showStatus(`${message}。モデルの読み込み完了をお待ちください。`, 'success');
     }
 }
 
-// キーボードイベントリスナーを追加
-document.addEventListener('paste', handlePaste);
-
-// フォーカス可能にするためのtabindex追加
-document.addEventListener('DOMContentLoaded', function() {
-    document.body.setAttribute('tabindex', '-1');
-    document.body.focus();
-});
-
-// ファイル入力処理
-const fileInput = document.getElementById('fileInput');
-if (fileInput) {
-    fileInput.addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const img = new Image();
-                img.onload = function() {
-                    uploadedImage = img;
-                    
-                    // 新しいレイアウトで画像を表示（初期化も含む）
-                    showImagePreview(e.target.result);
-                    
-                    // モデルが読み込まれている場合は自動で分析開始
-                    if (session) {
-                        analyzeBoardImage();
-                    } else {
-                        showStatus('✅ 画像が読み込まれました。モデルの読み込み完了をお待ちください。', 'success');
-                    }
-                };
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
-    });
+// 画像入力エラー処理のコールバック関数
+function handleImageError(error) {
+    console.error('画像入力エラー:', error);
+    showStatus(`❌ エラー: ${error.message}`, 'error');
 }
 
-// 初期化
-loadModel();
-
-const MINO_CLASSES = [
-    "mino-empty", "mino-I", "mino-O", "mino-T", 
-    "mino-L", "mino-J", "mino-S", "mino-Z", "mino-X"
-];
-
+// テトリス盤面作成
 function createTetrisBoard() {
     const board = document.getElementById('tetrisBoard');
     board.innerHTML = '';
@@ -310,6 +272,7 @@ function createTetrisBoard() {
     }
 }
 
+// テトリス盤面描画
 function drawTetrisBoard(input) {
     // 入力チェック
     if (input.length !== 200) {
@@ -345,11 +308,12 @@ function drawTetrisBoard(input) {
     }
 }
 
-// 画像表示の切り替え処理
+// 画像プレビュー表示
 function showImagePreview(imageSrc) {
     const uploadContent = document.getElementById('uploadContent');
     const analysisContent = document.getElementById('analysisContent');
     const previewImage = document.getElementById('previewImage');
+    const uploadSection = document.getElementById('uploadSection');
     
     // アップロード内容を非表示にし、分析内容を表示
     uploadContent.style.display = 'none';
@@ -358,11 +322,11 @@ function showImagePreview(imageSrc) {
     // 画像を設定
     previewImage.src = imageSrc;
     
+    // アップロードセクションに画像が読み込まれたことを示すクラスを追加
+    uploadSection.classList.add('has-image');
+    
     // 初期化: テトリス盤面とFumen URLを非表示に
     initializeAnalysisResults();
-    
-    // クリックイベントを無効化
-    document.getElementById('uploadSection').onclick = null;
 }
 
 // 分析結果の初期化
@@ -377,7 +341,7 @@ function initializeAnalysisResults() {
     currentFumenUrl = '';
 }
 
-// 分析結果でテトリス盤面を描画
+// 分析結果でテトリス盤面を表示
 function showAnalysisResult(boardData) {
     drawTetrisBoard(boardData);
     // テトリス盤面を表示
@@ -389,3 +353,20 @@ function showFumenButton() {
     const fumenSection = document.getElementById('fumenSection');
     fumenSection.style.display = 'block';
 }
+
+// 初期化処理
+function initialize() {
+    // モデル読み込み開始
+    loadModel();
+    
+    // 画像入力ハンドラーを初期化
+    imageInputHandler = new ImageInputHandler({
+        uploadSection: document.getElementById('uploadSection'),
+        fileInput: document.getElementById('fileInput'),
+        onImageLoaded: handleImageLoaded,
+        onError: handleImageError
+    });
+}
+
+// DOM読み込み完了後に初期化
+document.addEventListener('DOMContentLoaded', initialize);

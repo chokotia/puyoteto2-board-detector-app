@@ -3,21 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ぷよテト画像→テト譜変換</title>
+    <title>テトリス盤面画像からテト譜生成</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.16.0/dist/ort.min.js"></script>
 </head>  
 <body>
     <div class="container">
-        <h1>🎮 ぷよテト画像→テトリス譜面 変換</h1>
-        ぷよぷよテトリス2の盤面画像（対テトリス専用）からテトリス譜面を生成します。
+        <h1>【ぷよぷよテトリス2】画像からテト譜生成</h1>
         
-        <div class="upload-section" id="uploadSection" onclick="document.getElementById('fileInput').click()">
+        <div class="upload-area" id="uploadArea">
             <div class="upload-content" id="uploadContent">
-                <p>📁 クリックして画像を選択</p>
-                <p>または <kbd>Ctrl + V</kbd> でクリップボードから貼り付け</p>
-                <p style="color: #999; font-size: 12px;">対応形式: PNG, JPG</p>
+                <div class="upload-icon">📷</div>
+                <div class="upload-text">画像をここにドロップまたはクリック</div>
+                <div class="upload-hint">
+                    ドラッグ&ドロップ / クリックしてファイル選択 / Ctrl+V で貼り付け
+                </div>
+                <div class="upload-methods">
+                    <span class="method-tag">ドラッグ&ドロップ</span>
+                    <span class="method-tag">クリック選択</span>
+                    <span class="method-tag">Ctrl+V 貼り付け</span>
+                </div>
             </div>
             
             <!-- 画像と盤面を並べて表示するエリア -->
@@ -49,17 +55,17 @@
         <div id="statusDiv"></div>
     </div>
 
-    <div>
-    使用方法（なんか固いかな）
-    ・入力画像は以下のサンプルを参考にしてください。
-        <a href="./sample_images.zip" download="サンプル画像.zip">入力画像（サンプル）をダウンロード</a>
-    ・Windows PCの場合 Win + Shift + S で該当盤面をコピーし、Ctr + V で貼り付けるのがおすすめです。
-    ・画像内に枠があった場合、簡易的に削除する処理を入れていますが、もし入れない方が良い場合はここをクリックしてください。（処理を入れたい。
-    const results = await cropColorFrames(canvas);　をやるかやらないか選択させたい。）
-    
-    
-    その他（なんかもっと良いタイトルないんか）
-    ・モデルの学習環境は https://github.com/chokotia/puyoteto2-board-detector　を参照ください。
+    <div class="info-section">
+        <h4>使用方法</h4>
+        <ul>
+            <li>ぷよぷよテトリス2の盤面画像（対テトリス専用）を読み込ませてください。テトリス譜面に変換します。</li>
+            <li>入力画像については<a href="./sample_images.zip" download="サンプル画像.zip">サンプル画像</a>をダウンロードして参考にしてください</li>
+            <li>Windows PCを使用している場合は、Win + Shift + Sで盤面画像をコピーし、Ctr + V で貼り付けると楽に作業できます。</li>
+        </ul>
+        <h4>備考</h4>
+        <ul>
+            <li>モデルの学習環境については、<a href="https://github.com/chokotia/puyoteto2-board-detector" target="_blank" rel="noopener">GitHub</a> を参照ください。</p></li>
+        </ul>
     </div>
 
     <script src="lib/fumen.bundle.js"></script>
