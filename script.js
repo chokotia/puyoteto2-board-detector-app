@@ -1,7 +1,9 @@
+// グローバル変数
 let session = null;
 let uploadedImage = null;
 let currentFumenUrl = '';
 let imageInputHandler = null;
+let modelLoadingPromise = null; // モデル読み込みのPromiseを管理
 
 // ラベル名の定義
 const LABEL_NAMES = [
@@ -60,18 +62,37 @@ function openFumenUrl() {
     }
 }
 
-// ONNXモデルをロード
+// ONNXモデルをロード（Promise版）
 async function loadModel() {
-    try {
-        showStatus('🔄 モデルを読み込み中...', 'loading');
-        session = await ort.InferenceSession.create('./models/tetris_mobilenet_v3_small.onnx');
-
-        showStatus('✅ モデルが正常に読み込まれました', 'success');
-        console.log('モデル読み込み完了');
-    } catch (error) {
-        console.error('モデルの読み込みに失敗:', error);
-        showStatus('❌ エラー: モデルファイル(tetris_mobilenet_v3_small.onnx)が見つかりません', 'error');
+    if (modelLoadingPromise) {
+        return modelLoadingPromise; // 既に読み込み中の場合は同じPromiseを返す
     }
+
+    modelLoadingPromise = (async () => {
+        try {
+            showStatus('🔄 モデルを読み込み中...', 'loading');
+            console.log('モデル読み込み開始');
+            
+            session = await ort.InferenceSession.create('./models/tetris_mobilenet_v3_small.onnx');
+
+            showStatus('✅ モデルが正常に読み込まれました', 'success');
+            console.log('モデル読み込み完了');
+            
+            // 既に画像がアップロードされている場合は自動で解析開始
+            if (uploadedImage) {
+                console.log('画像が既にアップロードされているため、解析を開始します');
+                setTimeout(() => analyzeBoardImage(), 500);
+            }
+            
+            return session;
+        } catch (error) {
+            console.error('モデルの読み込みに失敗:', error);
+            showStatus('❌ エラー: モデルファイル(tetris_mobilenet_v3_small.onnx)が見つかりません', 'error');
+            throw error;
+        }
+    })();
+
+    return modelLoadingPromise;
 }
 
 // ステータス表示
@@ -110,11 +131,23 @@ function preprocessImage(imageElement, targetWidth = 224, targetHeight = 224) {
 
 // 盤面分析メイン処理
 async function analyzeBoardImage() {
-    if (!session || !uploadedImage) return;
+    console.log('analyzeBoardImage 開始');
+    
+    if (!session) {
+        console.error('モデルが読み込まれていません');
+        showStatus('❌ エラー: モデルが読み込まれていません', 'error');
+        return;
+    }
+    
+    if (!uploadedImage) {
+        console.error('画像がアップロードされていません');
+        showStatus('❌ エラー: 画像がアップロードされていません', 'error');
+        return;
+    }
     
     showStatus('📄 画像の前処理中（枠削除）...', 'loading');
     
-     try {
+    try {
         // 元の画像をCanvasに描画
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -122,18 +155,16 @@ async function analyzeBoardImage() {
         canvas.height = uploadedImage.height;
         ctx.drawImage(uploadedImage, 0, 0);
         
+        // 枠削除処理
         showStatus('🔄 枠削除処理を実行中...', 'loading');
         const results = await cropColorFrames(canvas);
         preprocessedCanvas = results?.players["1P2P"]?.cropped?.canvas || canvas;
-    
-        
-        // [debug] 前処理後の画像をbase64でコンソール出力（目視確認用）
-        // const croppedBase64 = results?.players["1P2P"]?.cropped?.base64;
-        // console.log('🖼️ 前処理後の画像 (base64):', croppedBase64);
+
         
         // 前処理後の画像サイズを取得
         const preprocessedWidth = preprocessedCanvas.width;
         const preprocessedHeight = preprocessedCanvas.height;
+        console.log(`前処理後の画像サイズ: ${preprocessedWidth}x${preprocessedHeight}`);
         
         // セルサイズを再計算（前処理後の画像サイズに基づく）
         const cellWidth = preprocessedWidth / 10;
@@ -180,7 +211,6 @@ async function analyzeBoardImage() {
                 // 最大値のインデックスを取得
                 let maxIndex = 0;
                 let maxValue = output[0];
-                // console.log("output", col, row, output);
                 for (let i = 1; i < output.length; i++) {
                     if (output[i] > maxValue) {
                         maxValue = output[i];
@@ -198,6 +228,7 @@ async function analyzeBoardImage() {
         
         // 結果を表示
         const labelString = predictedLabels.join('');
+        console.log(`予測結果: ${labelString}`);
         
         // テトリス盤面を描画
         showAnalysisResult(labelString);
@@ -207,14 +238,12 @@ async function analyzeBoardImage() {
             currentFumenUrl = generateFumenUrl(labelString);
             showFumenButton();
             showStatus(`🎉 分析完了！Fumen譜面が生成されました`, 'success');
+            console.log(`Fumen URL: ${currentFumenUrl}`);
         } catch (fumenError) {
             console.error('Fumen URL生成エラー:', fumenError);
             currentFumenUrl = '';
             showStatus(`⚠️ 分析完了（Fumen URL生成でエラーが発生）`, 'error');
         }
-        
-        console.log(`予測結果: ${labelString}`);
-        console.log(`Fumen URL: ${currentFumenUrl}`);
         
     } catch (error) {
         console.error('分析エラー:', error);
@@ -223,7 +252,7 @@ async function analyzeBoardImage() {
 }
 
 // 画像入力処理のコールバック関数
-function handleImageLoaded(imageData) {
+async function handleImageLoaded(imageData) {
     console.log('画像が読み込まれました:', imageData.source);
     
     // グローバル変数に画像を保存
@@ -240,13 +269,38 @@ function handleImageLoaded(imageData) {
     };
     
     const message = sourceMessages[imageData.source] || '✅ 画像が読み込まれました';
+    showStatus(message, 'success');
     
-    // モデルが読み込まれている場合は自動で分析開始
-    if (session) {
-        showStatus(message, 'success');
-        setTimeout(() => analyzeBoardImage(), 100); // 少し遅延させてUI更新を確実に
-    } else {
-        showStatus(`${message}。モデルの読み込み完了をお待ちください。`, 'success');
+    // モデルの状態をチェックして解析開始
+    await startAnalysisIfReady();
+}
+
+// モデルと画像の両方が準備できている場合に解析を開始
+async function startAnalysisIfReady() {
+    console.log('解析開始チェック - モデル:', !!session, '画像:', !!uploadedImage);
+    
+    if (!uploadedImage) {
+        console.log('画像がアップロードされていません');
+        return;
+    }
+
+    try {
+        if (!session) {
+            console.log('モデルが読み込まれていないため、読み込みを待機します');
+            showStatus('🔄 モデルの読み込みを待機中...', 'loading');
+            
+            // モデルの読み込みを待つ
+            await loadModel();
+        }
+        
+        if (session && uploadedImage) {
+            console.log('モデルと画像の準備が完了。解析を開始します');
+            showStatus('🚀 解析を開始します...', 'loading');
+            setTimeout(() => analyzeBoardImage(), 300);
+        }
+    } catch (error) {
+        console.error('モデル読み込みまたは解析開始でエラー:', error);
+        showStatus('❌ エラー: 解析の開始に失敗しました', 'error');
     }
 }
 
@@ -313,7 +367,9 @@ function showImagePreview(imageSrc) {
     const uploadContent = document.getElementById('uploadContent');
     const analysisContent = document.getElementById('analysisContent');
     const previewImage = document.getElementById('previewImage');
-    const uploadSection = document.getElementById('uploadSection');
+    const uploadArea = document.getElementById('uploadArea');
+    
+    console.log('画像プレビューを表示します');
     
     // アップロード内容を非表示にし、分析内容を表示
     uploadContent.style.display = 'none';
@@ -322,8 +378,10 @@ function showImagePreview(imageSrc) {
     // 画像を設定
     previewImage.src = imageSrc;
     
-    // アップロードセクションに画像が読み込まれたことを示すクラスを追加
-    uploadSection.classList.add('has-image');
+    // アップロードエリアに画像が読み込まれたことを示すクラスを追加
+    if (uploadArea) {
+        uploadArea.classList.add('has-image');
+    }
     
     // 初期化: テトリス盤面とFumen URLを非表示に
     initializeAnalysisResults();
@@ -332,10 +390,16 @@ function showImagePreview(imageSrc) {
 // 分析結果の初期化
 function initializeAnalysisResults() {
     // テトリス盤面を非表示
-    document.getElementById('boardSection').style.display = 'none';
+    const boardSection = document.getElementById('boardSection');
+    if (boardSection) {
+        boardSection.style.display = 'none';
+    }
     
     // Fumen URLを非表示
-    document.getElementById('fumenSection').style.display = 'none';
+    const fumenSection = document.getElementById('fumenSection');
+    if (fumenSection) {
+        fumenSection.style.display = 'none';
+    }
     
     // 現在のFumen URLをリセット
     currentFumenUrl = '';
@@ -345,26 +409,37 @@ function initializeAnalysisResults() {
 function showAnalysisResult(boardData) {
     drawTetrisBoard(boardData);
     // テトリス盤面を表示
-    document.getElementById('boardSection').style.display = 'block';
+    const boardSection = document.getElementById('boardSection');
+    if (boardSection) {
+        boardSection.style.display = 'block';
+    }
 }
 
 // Fumen ボタンを表示
 function showFumenButton() {
     const fumenSection = document.getElementById('fumenSection');
-    fumenSection.style.display = 'block';
+    if (fumenSection) {
+        fumenSection.style.display = 'block';
+    }
 }
 
 // 初期化処理
-function initialize() {
-    // モデル読み込み開始
-    loadModel();
+async function initialize() {
+    console.log('アプリケーション初期化開始');
     
     // 画像入力ハンドラーを初期化
     imageInputHandler = new ImageInputHandler({
-        uploadSection: document.getElementById('uploadSection'),
+        uploadArea: document.getElementById('uploadArea'),
         fileInput: document.getElementById('fileInput'),
         onImageLoaded: handleImageLoaded,
         onError: handleImageError
+    });
+    
+    console.log('画像入力ハンドラーを初期化しました');
+    
+    // モデル読み込み開始（非同期）
+    loadModel().catch(error => {
+        console.error('モデル読み込み失敗:', error);
     });
 }
 

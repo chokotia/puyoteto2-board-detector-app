@@ -4,7 +4,8 @@
  */
 class ImageInputHandler {
     constructor(options = {}) {
-        this.uploadSection = options.uploadSection || document.getElementById('uploadSection');
+        // 正しいIDを使用してuploadAreaを取得
+        this.uploadArea = options.uploadArea || document.getElementById('uploadArea');
         this.fileInput = options.fileInput || document.getElementById('fileInput');
         this.onImageLoaded = options.onImageLoaded || (() => {});
         this.onError = options.onError || ((error) => console.error(error));
@@ -30,17 +31,21 @@ class ImageInputHandler {
     setupFileInput() {
         if (this.fileInput) {
             this.fileInput.addEventListener('change', (e) => {
+                console.log('ファイル選択イベントが発生しました');
                 const file = e.target.files[0];
                 if (file) {
+                    console.log('選択されたファイル:', file.name, file.type);
                     this.processFile(file);
                 }
             });
         }
         
-        // アップロードセクションのクリックでファイル選択
-        if (this.uploadSection) {
-            this.uploadSection.addEventListener('click', () => {
-                if (this.fileInput && !this.uploadSection.classList.contains('has-image')) {
+        // アップロードエリアのクリックでファイル選択
+        if (this.uploadArea) {
+            this.uploadArea.addEventListener('click', (e) => {
+                console.log('アップロードエリアがクリックされました');
+                // 画像が既に読み込まれている場合はファイル選択を無効にする
+                if (this.fileInput && !this.uploadArea.classList.contains('has-image')) {
                     this.fileInput.click();
                 }
             });
@@ -52,10 +57,12 @@ class ImageInputHandler {
      */
     setupClipboardPaste() {
         document.addEventListener('paste', (e) => {
+            console.log('貼り付けイベントが発生しました');
             const items = e.clipboardData.items;
             
             for (let i = 0; i < items.length; i++) {
                 if (items[i].type.indexOf('image') !== -1) {
+                    console.log('クリップボードから画像を検出しました');
                     const blob = items[i].getAsFile();
                     this.processFile(blob);
                     e.preventDefault();
@@ -69,41 +76,59 @@ class ImageInputHandler {
      * ドラッグアンドドロップの設定
      */
     setupDragAndDrop() {
-        if (!this.uploadSection) return;
+        if (!this.uploadArea) {
+            console.error('uploadArea要素が見つかりません');
+            return;
+        }
         
-        // ドラッグオーバー時のスタイル制御
-        this.uploadSection.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            this.uploadSection.classList.add('drag-over');
+        // ブラウザのデフォルトのドラッグアンドドロップを防ぐ
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            this.uploadArea.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            });
         });
         
-        this.uploadSection.addEventListener('dragleave', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            
+        // ドラッグオーバー時のスタイル制御
+        this.uploadArea.addEventListener('dragenter', (e) => {
+            console.log('ドラッグエンター');
+            this.uploadArea.classList.add('drag-over');
+        });
+        
+        this.uploadArea.addEventListener('dragover', (e) => {
+            console.log('ドラッグオーバー');
+            this.uploadArea.classList.add('drag-over');
+        });
+        
+        this.uploadArea.addEventListener('dragleave', (e) => {
+            console.log('ドラッグリーブ');
             // 要素から完全に離れた場合のみスタイルを削除
-            if (!this.uploadSection.contains(e.relatedTarget)) {
-                this.uploadSection.classList.remove('drag-over');
+            if (!this.uploadArea.contains(e.relatedTarget)) {
+                this.uploadArea.classList.remove('drag-over');
             }
         });
         
-        this.uploadSection.addEventListener('drop', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            this.uploadSection.classList.remove('drag-over');
+        this.uploadArea.addEventListener('drop', (e) => {
+            console.log('ドロップイベントが発生しました');
+            this.uploadArea.classList.remove('drag-over');
             
             const files = Array.from(e.dataTransfer.files);
+            console.log('ドロップされたファイル:', files);
+            
             const imageFile = files.find(file => this.isImageFile(file));
             
             if (imageFile) {
+                console.log('有効な画像ファイルが見つかりました:', imageFile.name);
                 this.processFile(imageFile);
             } else if (files.length > 0) {
+                console.log('サポートされていないファイル形式');
                 this.onError(new Error('サポートされていないファイル形式です。PNG、JPG、GIF、WebP形式の画像をドロップしてください。'));
+            } else {
+                console.log('ファイルが見つかりませんでした');
             }
         });
         
-        // ブラウザのデフォルトのドラッグアンドドロップを無効化
+        // 全体のドラッグイベントも制御
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
             document.addEventListener(eventName, (e) => {
                 e.preventDefault();
@@ -126,13 +151,17 @@ class ImageInputHandler {
      * ファイルが画像かどうかチェック
      */
     isImageFile(file) {
-        return this.supportedTypes.includes(file.type);
+        const isSupported = this.supportedTypes.includes(file.type);
+        console.log(`ファイルタイプチェック: ${file.type} -> ${isSupported ? 'サポート' : 'サポート外'}`);
+        return isSupported;
     }
     
     /**
      * ファイルを処理してImageオブジェクトに変換
      */
     processFile(file) {
+        console.log('ファイル処理開始:', file.name, file.type);
+        
         if (!this.isImageFile(file)) {
             this.onError(new Error(`サポートされていないファイル形式です: ${file.type}`));
             return;
@@ -141,9 +170,11 @@ class ImageInputHandler {
         const reader = new FileReader();
         
         reader.onload = (e) => {
+            console.log('ファイル読み込み完了');
             const img = new Image();
             
             img.onload = () => {
+                console.log('画像読み込み完了:', img.width, 'x', img.height);
                 this.onImageLoaded({
                     image: img,
                     dataUrl: e.target.result,
@@ -153,6 +184,7 @@ class ImageInputHandler {
             };
             
             img.onerror = () => {
+                console.error('画像の読み込みに失敗しました');
                 this.onError(new Error('画像の読み込みに失敗しました。'));
             };
             
@@ -160,6 +192,7 @@ class ImageInputHandler {
         };
         
         reader.onerror = () => {
+            console.error('ファイルの読み込みに失敗しました');
             this.onError(new Error('ファイルの読み込みに失敗しました。'));
         };
         
@@ -189,8 +222,8 @@ class ImageInputHandler {
         if (this.fileInput) {
             this.fileInput.value = '';
         }
-        if (this.uploadSection) {
-            this.uploadSection.classList.remove('drag-over', 'has-image');
+        if (this.uploadArea) {
+            this.uploadArea.classList.remove('drag-over', 'has-image');
         }
     }
     
@@ -202,24 +235,3 @@ class ImageInputHandler {
         // 通常はページリロード時に自動的にクリーンアップされる
     }
 }
-
-// 使用方法の例
-/*
-const imageHandler = new ImageInputHandler({
-    uploadSection: document.getElementById('uploadSection'),
-    fileInput: document.getElementById('fileInput'),
-    onImageLoaded: (imageData) => {
-        console.log('画像が読み込まれました:', imageData);
-        // imageData.image: HTMLImageElement
-        // imageData.dataUrl: base64形式のデータURL
-        // imageData.file: Fileオブジェクト
-        // imageData.source: 'file-input' | 'clipboard' | 'drag-and-drop'
-    },
-    onError: (error) => {
-        console.error('エラー:', error.message);
-    }
-});
-*/
-
-// ES6モジュールとして使用する場合
-// export default ImageInputHandler;
