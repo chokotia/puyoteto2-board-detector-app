@@ -117,30 +117,12 @@ async function analyzeBoardImage() {
         
         // 枠削除の前処理を実行
         showStatus('🔄 枠削除処理を実行中...', 'loading');
+        const results = await cropColorFrames(canvas);
+        const preprocessedCanvas = results?.players["1P2P"]?.cropped?.canvas;
         
-        // canvasをbase64に変換
-        const base64img = canvas.toDataURL('image/png');
-        const cropper = new ColorFrameCropper();
-        const cropperResults = await cropper.processBothPlayers(base64img);
-        const croppedBase64 = cropperResults?.players["1P2P"]?.cropped?.base64;
-
-        // croppedBase64をcanvasに変換
-        const preprocessedCanvas = document.createElement('canvas');
-        const img = new Image();
-        await new Promise((resolve, reject) => {
-            img.onload = () => {
-                preprocessedCanvas.width = img.width;
-                preprocessedCanvas.height = img.height;
-                const ctx = preprocessedCanvas.getContext('2d');
-                ctx.drawImage(img, 0, 0);
-                resolve();
-            };
-            img.onerror = reject;
-            img.src = croppedBase64;
-        });
-
-        // 前処理後の画像をbase64でコンソール出力（目視確認用）
-        console.log('🖼️ 前処理後の画像 (base64):', croppedBase64);
+        // [debug] 前処理後の画像をbase64でコンソール出力（目視確認用）
+        // const croppedBase64 = results?.players["1P2P"]?.cropped?.base64;
+        // console.log('🖼️ 前処理後の画像 (base64):', croppedBase64);
         
         // 前処理後の画像サイズを取得
         const preprocessedWidth = preprocessedCanvas.width;
