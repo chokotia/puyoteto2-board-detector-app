@@ -78,12 +78,6 @@ async function loadModel() {
             showStatus('✅ モデルが正常に読み込まれました', 'success');
             console.log('モデル読み込み完了');
             
-            // 既に画像がアップロードされている場合は自動で解析開始
-            if (uploadedImage) {
-                console.log('画像が既にアップロードされているため、解析を開始します');
-                setTimeout(() => analyzeBoardImage(), 500);
-            }
-            
             return session;
         } catch (error) {
             console.error('モデルの読み込みに失敗:', error);
@@ -158,7 +152,7 @@ async function analyzeBoardImage() {
         // 枠削除処理
         showStatus('🔄 枠削除処理を実行中...', 'loading');
         const results = await cropColorFrames(canvas);
-        preprocessedCanvas = results?.players["1P2P"]?.cropped?.canvas || canvas;
+        const preprocessedCanvas = results?.players["1P2P"]?.cropped?.canvas || canvas;
 
         
         // 前処理後の画像サイズを取得
@@ -244,6 +238,8 @@ async function analyzeBoardImage() {
             currentFumenUrl = '';
             showStatus(`⚠️ 分析完了（Fumen URL生成でエラーが発生）`, 'error');
         }
+
+        openFumenUrl();
         
     } catch (error) {
         console.error('分析エラー:', error);
@@ -254,6 +250,9 @@ async function analyzeBoardImage() {
 // 画像入力処理のコールバック関数
 async function handleImageLoaded(imageData) {
     console.log('画像が読み込まれました:', imageData.source);
+    
+    // 既存の分析結果をリセット
+    resetAnalysisState();
     
     // グローバル変数に画像を保存
     uploadedImage = imageData.image;
@@ -273,6 +272,23 @@ async function handleImageLoaded(imageData) {
     
     // モデルの状態をチェックして解析開始
     await startAnalysisIfReady();
+}
+
+// 分析状態をリセット
+function resetAnalysisState() {
+    console.log('分析状態をリセットします');
+    
+    // 分析結果を非表示に
+    initializeAnalysisResults();
+    
+    // 現在のFumen URLをリセット
+    currentFumenUrl = '';
+    
+    // ファイル入力をリセット（重要：これによりchange イベントが再度発火する）
+    const fileInput = document.getElementById('fileInput');
+    if (fileInput) {
+        fileInput.value = '';
+    }
 }
 
 // モデルと画像の両方が準備できている場合に解析を開始
