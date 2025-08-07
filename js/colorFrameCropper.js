@@ -81,7 +81,6 @@ function extractColorMask(imageData, color) {
             const range1 = (h >= 0 && h <= 10) && (s >= 30) && (v >= 120);
             const range2 = (h >= 160 && h <= 180) && (s >= 30) && (v >= 120);
             inRange = range1 || range2;
-            console.log("h, s, v:", h, s, v)
         } else if (color === 'blue') {
             inRange = (h >= 85 && h <= 110) && (s >= 50) && (v >= 100);
         }
