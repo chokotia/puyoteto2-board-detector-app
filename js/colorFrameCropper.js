@@ -78,8 +78,8 @@ function extractColorMask(imageData, color) {
         let inRange = false;
 
         if (color === 'red') {
-            const range1 = (h >= 0 && h <= 10) && (s >= 50) && (v >= 120);
-            const range2 = (h >= 160 && h <= 180) && (s >= 50) && (v >= 120);
+            const range1 = (h >= 0 && h <= 10) && (s >= 30) && (v >= 120);
+            const range2 = (h >= 160 && h <= 180) && (s >= 30) && (v >= 120);
             inRange = range1 || range2;
         } else if (color === 'blue') {
             inRange = (h >= 85 && h <= 110) && (s >= 50) && (v >= 100);
@@ -418,9 +418,9 @@ async function cropColorFrames(canvas, options = {}) {
 // エクスポート（モジュール使用時）
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
-        processSinglePlayerFrame,
-        processBothPlayersFrames,
+        // processSinglePlayerFrame,
+        // processBothPlayersFrames,
         cropColorFrames,
-        canvasUtils
+        // canvasUtils
     };
 }

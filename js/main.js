@@ -5,56 +5,6 @@ let currentFumenUrl = '';
 let imageInputHandler = null;
 let modelLoadingPromise = null; // モデル読み込みのPromiseを管理
 
-// ラベル名の定義
-const LABEL_NAMES = [
-    "_", "I", "O", "T", "L", "J", "S", "Z", "X"
-];
-
-// Mino クラス定義
-const MINO_CLASSES = [
-    "mino-empty", "mino-I", "mino-O", "mino-T", 
-    "mino-L", "mino-J", "mino-S", "mino-Z", "mino-X"
-];
-
-// 数字列をFumen用のフィールド文字列に変換
-function convertToFumenField(numberString) {
-    if (numberString.length !== 200) {
-        throw new Error('数字列は200文字である必要があります');
-    }
-    
-    let fumenField = '';
-    
-    // 10列×20行の数字列を処理
-    // 上から下へ、左から右への順序でFumen形式に変換
-    for (let row = 0; row < 20; row++) {
-        for (let col = 0; col < 10; col++) {
-            const index = col * 20 + row; // 列優先の順序
-            const number = parseInt(numberString[index]);
-            const label = LABEL_NAMES[number];
-            fumenField += label;
-        }
-    }
-    
-    return fumenField;
-}
-
-// 数字列からFumen URLを生成
-function generateFumenUrl(numberString) {
-    try {
-        const fieldStr = convertToFumenField(numberString);
-        const field = tetrisFumen.Field.create(fieldStr);
-        
-        const pages = [{ field, comment: '' }];
-        const fumen = tetrisFumen.encoder.encode(pages);
-        
-        return `https://knewjade.github.io/fumen-for-mobile/#?d=${fumen}`;
-        
-    } catch (error) {
-        console.error('Fumen URL生成エラー:', error);
-        throw error;
-    }
-}
-
 // Fumen URLを開く
 function openFumenUrl() {
     if (currentFumenUrl) {
@@ -62,65 +12,10 @@ function openFumenUrl() {
     }
 }
 
-// ONNXモデルをロード（Promise版）
-async function loadModel() {
-    if (modelLoadingPromise) {
-        return modelLoadingPromise; // 既に読み込み中の場合は同じPromiseを返す
-    }
-
-    modelLoadingPromise = (async () => {
-        try {
-            showStatus('🔄 モデルを読み込み中...', 'loading');
-            console.log('モデル読み込み開始');
-            
-            session = await ort.InferenceSession.create('./models/tetris_mobilenet_v3_small.onnx');
-
-            showStatus('✅ モデルが正常に読み込まれました', 'success');
-            console.log('モデル読み込み完了');
-            
-            return session;
-        } catch (error) {
-            console.error('モデルの読み込みに失敗:', error);
-            showStatus('❌ エラー: モデルファイル(tetris_mobilenet_v3_small.onnx)が見つかりません', 'error');
-            throw error;
-        }
-    })();
-
-    return modelLoadingPromise;
-}
-
 // ステータス表示
 function showStatus(message, type = '') {
     const statusDiv = document.getElementById('statusDiv');
     statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
-}
-
-// 画像を前処理（224x224にリサイズして正規化）
-function preprocessImage(imageElement, targetWidth = 224, targetHeight = 224) {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    
-    canvas.width = targetWidth;
-    canvas.height = targetHeight;
-    ctx.drawImage(imageElement, 0, 0, targetWidth, targetHeight);
-    
-    const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
-    const data = imageData.data;
-    
-    // RGB値を[0,1]に正規化
-    const input = new Float32Array(1 * 3 * targetWidth * targetHeight);
-    
-    for (let i = 0; i < targetWidth * targetHeight; i++) {
-        const r = data[i * 4] / 255.0;
-        const g = data[i * 4 + 1] / 255.0;
-        const b = data[i * 4 + 2] / 255.0;
-        
-        input[i] = r;
-        input[targetWidth * targetHeight + i] = g;
-        input[targetWidth * targetHeight * 2 + i] = b;
-    }
-    
-    return input;
 }
 
 // 盤面分析メイン処理
@@ -324,58 +219,6 @@ async function startAnalysisIfReady() {
 function handleImageError(error) {
     console.error('画像入力エラー:', error);
     showStatus(`❌ エラー: ${error.message}`, 'error');
-}
-
-// テトリス盤面作成
-function createTetrisBoard() {
-    const board = document.getElementById('tetrisBoard');
-    board.innerHTML = '';
-    
-    // 20行×10列のセルを作成
-    for (let row = 0; row < 20; row++) {
-        for (let col = 0; col < 10; col++) {
-            const cell = document.createElement('div');
-            cell.className = 'cell mino-empty';
-            cell.id = `cell-${row}-${col}`;
-            board.appendChild(cell);
-        }
-    }
-}
-
-// テトリス盤面描画
-function drawTetrisBoard(input) {
-    // 入力チェック
-    if (input.length !== 200) {
-        console.error(`入力データは200文字である必要があります。現在: ${input.length}文字`);
-        return;
-    }
-
-    // 数字以外が含まれていないかチェック
-    if (!/^[0-8]+$/.test(input)) {
-        console.error('入力データは0-8の数字のみである必要があります。');
-        return;
-    }
-
-    // 盤面を作成
-    createTetrisBoard();
-
-    // データを解析して盤面に反映
-    for (let i = 0; i < 200; i++) {
-        const minoIndex = parseInt(input[i]);
-        
-        // 列優先でのインデックス計算
-        const col = Math.floor(i / 20);  // 列 (0-9)
-        const row = i % 20;              // 行 (0-19)
-        
-        const cell = document.getElementById(`cell-${row}-${col}`);
-        if (cell) {
-            // 既存のミノクラスを除去
-            MINO_CLASSES.forEach(cls => cell.classList.remove(cls));
-            
-            // 新しいミノクラスを追加
-            cell.classList.add(MINO_CLASSES[minoIndex]);
-        }
-    }
 }
 
 // 画像プレビュー表示
