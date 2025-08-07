@@ -80,9 +80,13 @@ function extractColorMask(imageData, color) {
         if (color === 'red') {
             const range1 = (h >= 0 && h <= 10) && (s >= 30) && (v >= 120);
             const range2 = (h >= 160 && h <= 180) && (s >= 30) && (v >= 120);
-            inRange = range1 || range2;
+            const isRed = range1 || range2;
+            const isWhite = (s <= 30) && (v >= 200);
+            inRange = isRed || isWhite;
         } else if (color === 'blue') {
-            inRange = (h >= 85 && h <= 110) && (s >= 50) && (v >= 100);
+            const isBlue = (h >= 85 && h <= 110) && (s >= 50) && (v >= 100);
+            const isWhite = (s <= 30) && (v >= 200);
+            inRange = isBlue || isWhite;
         } else if (color === 'red_gray_white') {
             // 赤 + 灰色 + 白色（上部フレーム検出用）
             const range1 = (h >= 0 && h <= 10) && (s >= 30) && (v >= 120);
@@ -106,7 +110,7 @@ function extractColorMask(imageData, color) {
 }
 
 // 内側から外側に向かって枠の境界を検出（上部検出に別マスクを使用）
-function findFrameBoundariesInsideOut(primaryMask, topMask, width, height, minRatio = 0.7, searchRatioX = 0.1, searchRatioY = 0.05) {
+function findFrameBoundariesInsideOut(primaryMask, topMask, width, height, minRatio = 0.8, searchRatioX = 0.1, searchRatioY = 0.05) {
     const maxSearchX = Math.floor(width * searchRatioX);
     const maxSearchY = Math.floor(height * searchRatioY);
 
