@@ -1,4 +1,4 @@
-// Canvas入出力対応のカラーフレームクロッパー関数群
+// Canvas入出力対応のカラーフレームクロッパー関数群（灰色・白色対応版）
 
 // ユーティリティ関数群
 const canvasUtils = {
@@ -83,6 +83,20 @@ function extractColorMask(imageData, color) {
             inRange = range1 || range2;
         } else if (color === 'blue') {
             inRange = (h >= 85 && h <= 110) && (s >= 50) && (v >= 100);
+        } else if (color === 'red_gray_white') {
+            // 赤 + 灰色 + 白色（上部フレーム検出用）
+            const range1 = (h >= 0 && h <= 10) && (s >= 30) && (v >= 120);
+            const range2 = (h >= 160 && h <= 180) && (s >= 30) && (v >= 120);
+            const isRed = range1 || range2;
+            const isGray = (s <= 50) && (v >= 80 && v <= 180);
+            const isWhite = (s <= 30) && (v >= 200);
+            inRange = isRed || isGray || isWhite;
+        } else if (color === 'blue_gray_white') {
+            // 青 + 灰色 + 白色（上部フレーム検出用）
+            const isBlue = (h >= 85 && h <= 110) && (s >= 50) && (v >= 100);
+            const isGray = (s <= 50) && (v >= 80 && v <= 180);
+            const isWhite = (s <= 30) && (v >= 200);
+            inRange = isBlue || isGray || isWhite;
         }
 
         mask[pixelIndex] = inRange ? 255 : 0;
@@ -91,16 +105,17 @@ function extractColorMask(imageData, color) {
     return { mask, width, height };
 }
 
-// 内側から外側に向かって枠の境界を検出
-function findFrameBoundariesInsideOut(maskData, width, height, minRatio = 0.7, searchRatioX = 0.1, searchRatioY = 0.05) {
+// 内側から外側に向かって枠の境界を検出（上部検出に別マスクを使用）
+function findFrameBoundariesInsideOut(primaryMask, topMask, width, height, minRatio = 0.7, searchRatioX = 0.1, searchRatioY = 0.05) {
     const maxSearchX = Math.floor(width * searchRatioX);
     const maxSearchY = Math.floor(height * searchRatioY);
 
+    // 左右・下部は従来通り主要色マスクを使用
     let left = 0;
     for (let x = maxSearchX; x >= 0; x--) {
         let colSum = 0;
         for (let y = 0; y < height; y++) {
-            if (maskData[y * width + x] > 0) colSum++;
+            if (primaryMask[y * width + x] > 0) colSum++;
         }
         if (colSum > height * minRatio) {
             left = x + 1;
@@ -112,7 +127,7 @@ function findFrameBoundariesInsideOut(maskData, width, height, minRatio = 0.7, s
     for (let x = width - maxSearchX - 1; x < width; x++) {
         let colSum = 0;
         for (let y = 0; y < height; y++) {
-            if (maskData[y * width + x] > 0) colSum++;
+            if (primaryMask[y * width + x] > 0) colSum++;
         }
         if (colSum > height * minRatio) {
             right = x;
@@ -122,10 +137,12 @@ function findFrameBoundariesInsideOut(maskData, width, height, minRatio = 0.7, s
 
     let top = 0;
     let topFrameRemoved = false;
+    
+    // 上部の検出処理：複合マスク（主要色+灰色+白色）を使用
     for (let y = maxSearchY; y >= 0; y--) {
         let rowSum = 0;
         for (let x = 0; x < width; x++) {
-            if (maskData[y * width + x] > 0) rowSum++;
+            if (topMask[y * width + x] > 0) rowSum++;
         }
         if (rowSum > width * minRatio) {
             top = y + 1;
@@ -138,7 +155,7 @@ function findFrameBoundariesInsideOut(maskData, width, height, minRatio = 0.7, s
     for (let y = height - maxSearchY - 1; y < height; y++) {
         let rowSum = 0;
         for (let x = 0; x < width; x++) {
-            if (maskData[y * width + x] > 0) rowSum++;
+            if (primaryMask[y * width + x] > 0) rowSum++;
         }
         if (rowSum > width * minRatio) {
             bottom = y;
@@ -263,8 +280,12 @@ async function processSinglePlayerFrame(input, player, options = {}) {
     }
     
     const imageData = canvasUtils.canvasToImageData(canvas);
-    const { mask, width, height } = extractColorMask(imageData, color);
-    const boundaries = findFrameBoundariesInsideOut(mask, width, height);
+    
+    // 主要色マスクと上部用複合マスクを作成
+    const { mask: primaryMask, width, height } = extractColorMask(imageData, color);
+    const topColorKey = color === 'blue' ? 'blue_gray_white' : 'red_gray_white';
+    const { mask: topMask } = extractColorMask(imageData, topColorKey);
+    const boundaries = findFrameBoundariesInsideOut(primaryMask, topMask, width, height);
     const { left, right, top, bottom, topFrameRemoved } = boundaries;
 
     // 結果の妥当性チェック
@@ -314,7 +335,8 @@ async function processSinglePlayerFrame(input, player, options = {}) {
 
     // デバッグ情報を追加
     if (debug) {
-        const maskCanvas = createMaskCanvas(mask, width, height);
+        const maskCanvas = createMaskCanvas(primaryMask, width, height);
+        const topMaskCanvas = createMaskCanvas(topMask, width, height);
         const debugCanvas = createDebugCanvas(
             canvas, 
             { ...boundaries, top: finalTop }, 
@@ -327,6 +349,10 @@ async function processSinglePlayerFrame(input, player, options = {}) {
             mask: {
                 canvas: maskCanvas,
                 base64: canvasUtils.canvasToBase64(maskCanvas)
+            },
+            topMask: {
+                canvas: topMaskCanvas,
+                base64: canvasUtils.canvasToBase64(topMaskCanvas)
             },
             debugImage: {
                 canvas: debugCanvas,
