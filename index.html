@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>テトリス盤面画像からテト譜生成</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="css/styles.css">
     <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.16.0/dist/ort.min.js"></script>
 </head>  
 <body>
@@ -42,8 +42,7 @@
                
             </div>
         </div>
-        
-        <input type="file" id="fileInput" accept="image/*">
+        <input type="file" id="fileInput" accept="image/*" style="display: none;">
         
         <div id="statusDiv"></div>
     </div>
@@ -52,7 +51,7 @@
         <h4>使用方法</h4>
         <ul>
             <li>ぷよぷよテトリス2の盤面画像（対テトリス専用）を読み込ませてください。テトリス譜面に変換します。</li>
-            <li>入力画像については<a href="./sample_images.zip" download="サンプル画像.zip">サンプル画像</a>をダウンロードして参考にしてください</li>
+            <li>入力画像については<a href="./sample_images.zip" download="sample_images.zip">サンプル画像</a>をダウンロードして参考にしてください</li>
             <li>Windows PCを使用している場合は、Win + Shift + Sで盤面画像をコピーし、Ctr + V で貼り付けると楽に作業できます。</li>
         </ul>
         <h4>備考</h4>
