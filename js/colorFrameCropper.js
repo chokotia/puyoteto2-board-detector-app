@@ -81,6 +81,7 @@ function extractColorMask(imageData, color) {
             const range1 = (h >= 0 && h <= 10) && (s >= 30) && (v >= 120);
             const range2 = (h >= 160 && h <= 180) && (s >= 30) && (v >= 120);
             inRange = range1 || range2;
+            console.log("h, s, v:", h, s, v)
         } else if (color === 'blue') {
             inRange = (h >= 85 && h <= 110) && (s >= 50) && (v >= 100);
         }
@@ -247,7 +248,7 @@ async function processSinglePlayerFrame(input, player, options = {}) {
     } = options;
 
     const log = logCallback || (() => {});
-    const color = (player === '1P' || player === '1P2P') ? 'blue' : 'red';
+    const color = (player === '1P') ? 'blue' : 'red';
     
     log(`🎯 Processing ${player} (${color}) frame...`);
     
@@ -385,7 +386,7 @@ async function processBothPlayersFrames(input, options = {}) {
     try {
         if (results.players["1P"].success) {
             const croppedCanvas1P = results.players["1P"].cropped.canvas;
-            const player1P2PResult = await processSinglePlayerFrame(croppedCanvas1P, '1P2P', options);
+            const player1P2PResult = await processSinglePlayerFrame(croppedCanvas1P, '2P', options);
             results.players['1P2P'] = player1P2PResult;
             if (!player1P2PResult.success) {
                 results.errors.push(`1P2P: ${player1P2PResult.error}`);
