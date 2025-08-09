@@ -49,6 +49,8 @@ async function analyzeBoardImage() {
         const results = await cropColorFrames(canvas);
         const preprocessedCanvas = results?.players["1P2P"]?.cropped?.canvas || canvas;
 
+        // デバッグ時に枠削除済みの画像確認用　base64画像
+        // const preprocessedBase64Img = results?.players["1P2P"]?.cropped?.base64
         
         // 前処理後の画像サイズを取得
         const preprocessedWidth = preprocessedCanvas.width;
